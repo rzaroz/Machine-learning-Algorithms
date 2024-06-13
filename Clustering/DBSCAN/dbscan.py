@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.datasets._samples_generator import make_blobs
 
 class DBScan:
     def __init__(self, neighbors, radius):
@@ -28,36 +29,42 @@ class DBScan:
 
         return self.cores_
 
+    def clustering(self, clus):
+        def has_common_value(lst1, lst2):
+            return any(val in lst2 for val in lst1)
+
+        merged = True
+        while merged:
+            merged = False
+            for i in range(len(clus)):
+                for j in range(i + 1, len(clus)):
+                    if has_common_value(clus[i], clus[j]):
+                        clus[i] = list(set(clus[i] + clus[j]))
+                        clus.pop(j)
+                        merged = True
+                        break
+                if merged:
+                    break
+        return clus
+
     def clusters_(self, cores, x):
         cores_d = x[x.index.isin(cores)]
-
         clus_ = []
-        counter = 1
+
         for i, r in cores_d.iterrows():
-            neighbors = []
+            neighbors = [i]
             for i_, r_ in cores_d.iterrows():
                 dis = self.euclidean_dis(np.array(r, dtype=float), np.array(r_, dtype=float))
                 if dis != 0:
                     if dis <= self.radius:
                         neighbors.append(i_)
 
-            if len(neighbors) == 0:
-                neighbors = [i]
-                clus_.append(neighbors)
-            else:
-                clus_.append(neighbors)
+            clus_.append(neighbors)
 
+        clus_ = self.clustering(clus_)
 
-        for n in clus_:
-            current = set(n)
-            for n_ in clus_:
-                plus = current.union(set(n_))
-                if current != plus:
-                    if len(plus) < len(n) + len(n_):
-                        current = plus
-
-            self.cluster[f"Cluster{counter}"] = list(current)
-            counter += 1
+        for i, c in enumerate(clus_):
+            self.cluster[f"Cluster{i+1}"] = c
 
         return self.cluster
 
@@ -93,6 +100,11 @@ class DBScan:
             _y = np.array(x_.iloc[:, y], dtype=float)
             plt.scatter(_x, _y, color=color)
 
+        out_d = self.df[self.df.index.isin(self.out)]
+        x_o = np.array(out_d.iloc[:, x], dtype=float)
+        y_o = np.array(out_d.iloc[:, y], dtype=float)
+        plt.scatter(x_o, y_o, color="black")
+
         plt.show()
 
     def fit(self, x):
@@ -103,9 +115,9 @@ class DBScan:
 
 
 
-df = pd.read_csv("weather-stations20140101-20141231.csv")
-df = df.drop(["BS%", "BS","Stn_Name", "Prov", "DwBS", "S_G", "D", "P%N", "Stn_No"], axis=1)
-df = df.dropna(how='any', axis=0)
-db = DBScan(neighbors=6, radius=10)
-db.fit(df)
-db.scatter_(14,13)
+X1, y1 = make_blobs(n_samples=250, centers=[[4,4], [-2, -1], [1, 1], [10,4]], cluster_std=0.9, random_state=42)
+plt.scatter(X1[:, 0], X1[:, 1], color="blue")
+
+db = DBScan(neighbors=7, radius=0.7)
+db.fit(pd.DataFrame(X1))
+db.scatter_(0,1)
